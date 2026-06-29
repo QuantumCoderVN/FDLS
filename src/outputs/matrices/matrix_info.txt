@@ -1,0 +1,12 @@
+IEEE 14-bus matrix export
+================================================================================
+nbus = 14
+baseMVA = 100.0
+slack bus internal index = 0
+PV internal indices = [np.int64(1), np.int64(2), np.int64(5), np.int64(7)]
+PQ internal indices = [np.int64(3), np.int64(4), np.int64(6), np.int64(8), np.int64(9), np.int64(10), np.int64(11), np.int64(12), np.int64(13)]
+non-slack internal indices = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]
+Ybus shape = (14, 14)
+Bprime shape = (13, 13)
+Bdouble_prime shape = (9, 9)
+rhs_p_initial shape = (13,)
