@@ -1,154 +1,125 @@
-# FDLS 5-Bus Power Flow Solver
+# IEEE 14-Bus FDLS with Classical, VQLS no-CZ, and HHL Solvers
 
-Mini-project Python triển khai **FDLS / FDLF — Fast Decoupled Load-flow** cho hệ 5-bus MATPOWER/PJM.
+This project implements the Fast Decoupled Load Flow Solver (FDLS) on the IEEE 14-bus power system and compares three linear solvers for the (P-\theta) step:
 
-Bộ dữ liệu mặc định là `case5`, một modified 5-bus, 5-generator case dựa trên PJM 5-bus system. Dữ liệu gốc được MATPOWER phân phối và dựa trên F. Li & R. Bo, “Small Test Systems for Power System Economic Studies”, IEEE PES General Meeting 2010.
+1. Classical solver using `numpy.linalg.solve`
+2. VQLS no-CZ solver using Qiskit
+3. HHL solver using Qiskit
 
-## 1. Cài đặt
+The project exports matrices, runs FDLS, compares voltage solutions, and saves plots and text results.
 
-Yêu cầu Python >= 3.10.
+## Project Structure
 
-```bash
-# clone project của bạn
-cd fdls-5bus
+```text
+src/
+├── main.py
+├── config.py
+├── logger.py
+├── ieee14_case.py
+├── exporter.py
+├── math_utils.py
+├── classical_solver.py
+├── vqls_solver.py
+├── hhl_solver.py
+├── fdls.py
+├── core.py
+└── plots.py
+```
 
-# tạo virtual environment
+## Problem
+
+FDLS solves the decoupled power-flow equations:
+
+```math
+B'\Delta\theta = \frac{\Delta P}{|V|}
+```
+
+```math
+B''\Delta |V| = \frac{\Delta Q}{|V|}
+```
+
+For the IEEE 14-bus system:
+
+* (Ybus): `14 × 14`
+* (B'): `13 × 13`
+* (B''): `9 × 9`
+* Quantum padded (B'): `16 × 16`
+* Number of system qubits: `4`
+
+## Installation
+
+Create and activate a virtual environment:
+
+```bat
 python -m venv .venv
-source .venv/bin/activate       # Linux/macOS
-# .venv\Scripts\activate      # Windows PowerShell
+.venv\Scripts\activate
+```
 
-# cài package ở chế độ editable + dev tools
+Install dependencies:
+
+```bat
 python -m pip install --upgrade pip
-pip install -e .[dev]
+python -m pip install -r requirements.txt
 ```
 
-## 2. Chạy thuật toán
-
-```bash
-fdls5bus
-```
-
-Hoặc:
-
-```bash
-PYTHONPATH=src python -m fdls5bus.cli
-```
-
-Kết quả tham khảo:
+## Requirements
 
 ```text
-Converged: True in 5 iterations
-
-bus | Vm(pu)    | Va(deg)    | Pcalc(pu)   | Qcalc(pu)
-----+-----------+------------+-------------+------------
-  1 |  1.000000 |   3.273361 |    2.100000 |   0.307252
-  2 |  0.989261 |  -0.759269 |   -3.000000 |  -0.986100
-  3 |  1.000000 |  -0.492259 |    0.234900 |   0.960447
-  4 |  1.000000 |   0.000000 |   -3.949728 |   0.526529
-  5 |  1.000000 |   4.112031 |    4.665100 |  -0.382096
+numpy
+scipy
+matplotlib
+qiskit
+qiskit-aer
+pylatexenc
+pypower
 ```
 
-## 3. Chạy test
+## Run
 
-```bash
-pytest -q
-ruff check .
+From the `src` folder:
+
+```bat
+cd src
+python main.py
 ```
 
-## 4. Cấu trúc dự án
+## Outputs
+
+The program saves results in:
 
 ```text
-fdls-5bus/
-├── .github/workflows/ci.yml
-├── docs/FDLS_MATH.md
-├── examples/run_case5.py
-├── src/fdls5bus/
-│   ├── __init__.py
-│   ├── cli.py
-│   ├── data.py
-│   ├── solver.py
-│   └── ybus.py
-├── tests/test_fdls_case5.py
-├── .gitignore
-├── LICENSE
-├── pyproject.toml
-└── README.md
+src/outputs/
 ```
 
-## 5. Ý tưởng thuật toán
+Text output:
 
-Newton-Raphson đầy đủ dùng:
-
-\[
-\begin{bmatrix}
-\Delta P\\
-\Delta Q
-\end{bmatrix}
-=
-\begin{bmatrix}
-H & N\\
-M & L
-\end{bmatrix}
-\begin{bmatrix}
-\Delta\delta\\
-\Delta |V|
-\end{bmatrix}.
-\]
-
-FDLS dùng giả thiết lưới truyền tải cao áp:
-
-\[
-R\ll X,\quad |\delta_i-\delta_j|\ll1,\quad |V|\approx1.
-\]
-
-Do đó:
-
-\[
-N=\frac{\partial P}{\partial |V|}\approx0,
-\quad
-M=\frac{\partial Q}{\partial\delta}\approx0.
-\]
-
-Ta tách thành hai hệ tuyến tính:
-
-\[
-B'\Delta\delta = \frac{\Delta P}{|V|},
-\]
-
-\[
-B''\Delta |V| = \frac{\Delta Q}{|V|}.
-\]
-
-Xem chứng minh chi tiết tại [`docs/FDLS_MATH.md`](docs/FDLS_MATH.md).
-
-## 6. Ghi chú mô hình
-
-- Bus type theo MATPOWER: `1 = PQ`, `2 = PV`, `3 = Slack`.
-- Slack bus trong case này là bus 4.
-- PV bus: bus 1, 3, 5.
-- PQ bus: bus 2.
-- Solver hiện tại không enforce giới hạn `Qmax/Qmin` của máy phát. Đây là chủ ý để giữ phần FDLS lõi rõ ràng.
-
-## 7. Đẩy lên GitHub
-
-```bash
-git init
-git add .
-git commit -m "Initial FDLS 5-bus solver"
-
-# tạo repo rỗng trên GitHub, ví dụ: https://github.com/<username>/fdls-5bus
-
-git branch -M main
-git remote add origin https://github.com/<username>/fdls-5bus.git
-git push -u origin main
+```text
+outputs/run_results.txt
 ```
 
-Nếu dùng GitHub CLI:
+Exported matrices:
 
-```bash
-gh repo create fdls-5bus --public --source=. --remote=origin --push
+```text
+outputs/matrices/Ybus_real.csv
+outputs/matrices/Ybus_imag.csv
+outputs/matrices/Bprime.csv
+outputs/matrices/Bdouble_prime.csv
+outputs/matrices/rhs_p_initial.csv
+outputs/matrices/matrix_info.txt
 ```
 
-## 8. License
+Plots:
 
-MIT.
+```text
+outputs/one_step_delta_theta_solution.png
+outputs/ieee14_fdls_loss_comparison.png
+outputs/ieee14_final_angle_solution.png
+outputs/ieee14_final_voltage_solution.png
+outputs/vqls_no_cz_cost.png
+```
+
+## Notes
+
+The quantum solvers are applied to the (P-\theta) linear system. The (Q-V) step is solved classically.
+
+This project is intended for research and educational comparison. It does not claim quantum advantage because the current implementation uses statevector simulation and a small benchmark system.
