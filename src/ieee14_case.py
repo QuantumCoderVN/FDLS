@@ -34,7 +34,16 @@ TAP = 8
 SHIFT = 9
 BR_STATUS = 10
 
+RATE_A = 5
 
+PMAX = 8
+PMIN = 9
+
+GENCOST_MODEL = 0
+GENCOST_NCOST = 3
+GENCOST_C2 = 4
+GENCOST_C1 = 5
+GENCOST_C0 = 6
 # ============================================================
 # IEEE 14-bus data
 # ============================================================
@@ -46,6 +55,7 @@ def load_ieee14_case():
     bus = np.asarray(mpc["bus"], dtype=float)
     gen = np.asarray(mpc["gen"], dtype=float)
     branch = np.asarray(mpc["branch"], dtype=float)
+    gencost = np.asarray(mpc["gencost"], dtype=float)
 
     bus_numbers = bus[:, BUS_I].astype(int)
     bus_id_to_idx = {bus_id: idx for idx, bus_id in enumerate(bus_numbers)}
@@ -63,17 +73,18 @@ def load_ieee14_case():
     non_slack = [i for i in range(nbus) if i != slack]
 
     return {
-        "base_mva": base_mva,
-        "bus": bus,
-        "gen": gen,
-        "branch": branch,
-        "bus_id_to_idx": bus_id_to_idx,
-        "nbus": nbus,
-        "slack": slack,
-        "pv": list(pv),
-        "pq": list(pq),
-        "non_slack": non_slack,
-    }
+    "base_mva": base_mva,
+    "bus": bus,
+    "gen": gen,
+    "branch": branch,
+    "gencost": gencost,
+    "bus_id_to_idx": bus_id_to_idx,
+    "nbus": nbus,
+    "slack": slack,
+    "pv": list(pv),
+    "pq": list(pq),
+    "non_slack": non_slack,
+}
 
 
 def make_ybus(case):

@@ -1,9 +1,11 @@
+import os
 import sys
 import warnings
 import numpy as np
-
+from config import RUN_DC_OPF
+from dc_opf import run_dc_opf_comparison
 from config import RESULT_TEXT_FILE, MATRIX_DIR
-
+from config import QUBO_MAX_STEP_NORM_FACTOR
 from logger import Tee
 
 from ieee14_case import (
@@ -22,6 +24,7 @@ from math_utils import vector_metrics
 from classical_solver import solve_classical
 from vqls_solver import solve_vqls_no_cz
 from hhl_solver import solve_hhl
+from qubo_solver import solve_qubo_annealing
 
 from fdls import fdls_power_flow
 
@@ -54,13 +57,47 @@ def hhl_p_solver(A, b):
     return x
 
 
+def qubo_p_solver(A, b):
+    x, info = solve_qubo_annealing(A, b, verbose=False)
+
+    # Nếu QUBO vẫn quá tệ thì trả bước nhỏ để không phá FDLS.
+    rel = info.get("relative_residual", 999.0)
+
+    if rel > 1.0:
+        # Fail-safe: không cho QUBO update phá hệ.
+        return np.zeros_like(b)
+
+    # Chặn norm bước update.
+    classical_scale = np.linalg.norm(b) / max(np.linalg.norm(A, ord=2), 1e-14)
+    max_norm = QUBO_MAX_STEP_NORM_FACTOR * max(classical_scale, 1e-12)
+
+    norm_x = np.linalg.norm(x)
+
+    if norm_x > max_norm:
+        x = x * (max_norm / norm_x)
+
+    return x
+
+
+# ============================================================
+# Print metric helper
+# ============================================================
+
+def print_metrics(name, metrics):
+    print(name + ":")
+    print(f"  residual          = {metrics['residual']:.6e}")
+    print(f"  relative residual = {metrics['rel_residual']:.6e}")
+    print(f"  relative error    = {metrics['rel_error']:.6e}")
+    print(f"  fidelity          = {metrics['fidelity']:.8f}")
+
+
 # ============================================================
 # Main program
 # ============================================================
 
 def main():
     print("\n" + "=" * 80)
-    print("IEEE 14-BUS DATA + FDLS + CLASSICAL/VQLS/HHL")
+    print("IEEE 14-BUS DATA + FDLS + CLASSICAL/VQLS/HHL/QUBO")
     print("=" * 80)
 
     # ------------------------------------------------------------
@@ -97,7 +134,8 @@ def main():
     print(f"Bprime shape      = {Bprime.shape}")
     print(f"Bdouble shape     = {Bdouble.shape}")
     print(f"Initial rhs shape = {rhs_p0.shape}")
-    print("Quantum solvers pad Bprime from 13x13 to 16x16.")
+    print("VQLS/HHL pad Bprime from 13x13 to 16x16.")
+    print("QUBO encodes 13 continuous variables into binary variables.")
 
     print("\nBprime matrix:")
     print(Bprime)
@@ -116,6 +154,16 @@ def main():
     x_classical = solve_classical(Bprime, rhs_p0)
     x_vqls, vqls_info = solve_vqls_no_cz(Bprime, rhs_p0, verbose=True)
     x_hhl, hhl_info = solve_hhl(Bprime, rhs_p0, verbose=True)
+    x_qubo, qubo_info = solve_qubo_annealing(Bprime, rhs_p0, verbose=True)
+
+    # Save initial QUBO matrix
+    if "Q_scaled" in qubo_info:
+        np.savetxt(
+            os.path.join(MATRIX_DIR, "QUBO_Q_initial_scaled.csv"),
+            qubo_info["Q_scaled"],
+            delimiter=",",
+            fmt="%.12e",
+        )
 
     print("\nClassical Δθ:")
     print(x_classical)
@@ -126,32 +174,33 @@ def main():
     print("\nHHL Δθ:")
     print(x_hhl)
 
+    print("\nQUBO annealing Δθ:")
+    print(x_qubo)
+
     print("\nSign comparison")
     print("Classical:", np.sign(x_classical))
     print("VQLS:     ", np.sign(x_vqls))
     print("HHL:      ", np.sign(x_hhl))
+    print("QUBO:     ", np.sign(x_qubo))
 
     vqls_metrics = vector_metrics(Bprime, rhs_p0, x_vqls, x_classical)
     hhl_metrics = vector_metrics(Bprime, rhs_p0, x_hhl, x_classical)
+    qubo_metrics = vector_metrics(Bprime, rhs_p0, x_qubo, x_classical)
 
     print("\nOne-step metrics vs classical")
     print("-" * 80)
+    print_metrics("VQLS no-CZ", vqls_metrics)
+    print_metrics("HHL", hhl_metrics)
+    print_metrics("QUBO annealing", qubo_metrics)
+    print(f"  QUBO binary variables = {qubo_info.get('num_binary_variables')}")
+    print(f"  QUBO bits per var     = {qubo_info.get('bits_per_var')}")
+    print(f"  QUBO step             = {qubo_info.get('step'):.6e}")
 
-    print("VQLS no-CZ:")
-    print(f"  residual          = {vqls_metrics['residual']:.6e}")
-    print(f"  relative residual = {vqls_metrics['rel_residual']:.6e}")
-    print(f"  relative error    = {vqls_metrics['rel_error']:.6e}")
-    print(f"  fidelity          = {vqls_metrics['fidelity']:.8f}")
-
-    print("HHL:")
-    print(f"  residual          = {hhl_metrics['residual']:.6e}")
-    print(f"  relative residual = {hhl_metrics['rel_residual']:.6e}")
-    print(f"  relative error    = {hhl_metrics['rel_error']:.6e}")
-    print(f"  fidelity          = {hhl_metrics['fidelity']:.8f}")
-    print(f"  success prob      = {hhl_info['success_probability']:.6e}")
+    print("\nHHL:")
+    print(f"  success prob          = {hhl_info['success_probability']:.6e}")
 
     # ------------------------------------------------------------
-    # True FDLS with three P-theta solvers
+    # True FDLS with four P-theta solvers
     # ------------------------------------------------------------
 
     print("\n" + "=" * 80)
@@ -185,7 +234,21 @@ def main():
         "HHL FDLS",
     )
 
-    results = [result_classical, result_vqls, result_hhl]
+    result_qubo = fdls_power_flow(
+        case,
+        Ybus,
+        Bprime,
+        Bdouble,
+        qubo_p_solver,
+        "QUBO annealing FDLS",
+    )
+
+    results = [
+        result_classical,
+        result_vqls,
+        result_hhl,
+        result_qubo,
+    ]
 
     for result in results:
         print("\n" + result["name"])
@@ -211,7 +274,7 @@ def main():
     ref_va = result_classical["va"]
     ref_vm = result_classical["vm"]
 
-    for result in [result_vqls, result_hhl]:
+    for result in [result_vqls, result_hhl, result_qubo]:
         angle_error = np.linalg.norm(result["va"] - ref_va)
         voltage_error = np.linalg.norm(result["vm"] - ref_vm)
 
@@ -224,11 +287,31 @@ def main():
     # Plots
     # ------------------------------------------------------------
 
-    plot_one_step_solution(non_slack, x_classical, x_vqls, x_hhl)
+    plot_one_step_solution(
+        non_slack,
+        {
+            "Classical": x_classical,
+            "VQLS no-CZ": x_vqls,
+            "HHL": x_hhl,
+            "QUBO annealing": x_qubo,
+        },
+    )
+
     plot_fdls_loss(results)
     plot_final_angle_solution(results, case["nbus"])
     plot_final_voltage_solution(results, case["nbus"])
+    # ------------------------------------------------------------
+    # Quantum Optimization Power Flow / DC-OPF
+    # ------------------------------------------------------------
 
+    if RUN_DC_OPF:
+        opf_results = run_dc_opf_comparison(
+            case,
+            classical_solver=classical_p_solver,
+            vqls_solver=vqls_p_solver,
+            hhl_solver=hhl_p_solver,
+            qubo_solver=qubo_p_solver,
+        )
     # ------------------------------------------------------------
     # Output summary
     # ------------------------------------------------------------
@@ -245,6 +328,7 @@ def main():
     print(f"  {MATRIX_DIR}/Bprime.csv")
     print(f"  {MATRIX_DIR}/Bdouble_prime.csv")
     print(f"  {MATRIX_DIR}/rhs_p_initial.csv")
+    print(f"  {MATRIX_DIR}/QUBO_Q_initial_scaled.csv")
 
     print("Plots:")
     print("  outputs/one_step_delta_theta_solution.png")
@@ -252,8 +336,14 @@ def main():
     print("  outputs/ieee14_final_angle_solution.png")
     print("  outputs/ieee14_final_voltage_solution.png")
     print("  outputs/vqls_no_cz_cost.png")
+    print("  outputs/qubo_annealing_energy.png")
 
+    print("\nImportant note:")
+    print("QUBO annealing here means QUBO formulation + classical simulated annealing.")
+    print("It is not a real D-Wave quantum annealer run yet.")
 
+    print("  outputs/dc_opf_gradcond.png")
+    print("  outputs/dc_opf_generator_dispatch.png")
 if __name__ == "__main__":
     with open(RESULT_TEXT_FILE, "w", encoding="utf-8") as result_file:
         original_stdout = sys.stdout

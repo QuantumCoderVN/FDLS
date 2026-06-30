@@ -1,6 +1,6 @@
 
 ================================================================================
-IEEE 14-BUS DATA + FDLS + CLASSICAL/VQLS/HHL
+IEEE 14-BUS DATA + FDLS + CLASSICAL/VQLS/HHL/QUBO
 ================================================================================
 
 Case information
@@ -18,7 +18,8 @@ Ybus shape        = (14, 14)
 Bprime shape      = (13, 13)
 Bdouble shape     = (9, 9)
 Initial rhs shape = (13,)
-Quantum solvers pad Bprime from 13x13 to 16x16.
+VQLS/HHL pad Bprime from 13x13 to 16x16.
+QUBO encodes 13 continuous variables into binary variables.
 
 Bprime matrix:
 [[ 30.2721154   -4.78186315  -5.11583833  -5.1939274   -0.
@@ -132,6 +133,20 @@ rotation constant     = 3.70447201e-02
 success probability   = 7.80940111e-04
 k                     = (0.00036013797996585614+0j)
 
+================================================================================
+IMPROVED QUBO / ANNEALING SOLVER
+================================================================================
+Solves correction form: x <- x + dx
+This is still classical simulated annealing, not D-Wave.
+variables              = 13
+bits per variable      = 10
+binary variables       = 130
+initial bound          = 2.00000000e-03
+final bound            = 3.69056250e-05
+step last              = 1.60337243e-07
+relative residual      = 3.41480289e-02
+residual history       = [1.0, 0.27730387180971766, 0.16041268748131865, 0.07808455770394407, 0.04583728671007355]
+
 Classical Δθ:
 [-2.95597285e-05  4.33256871e-05 -3.49966445e-05 -5.35874953e-06
  -1.34901783e-04 -3.77792895e-05 -2.23133255e-04 -1.77602742e-04
@@ -150,10 +165,17 @@ HHL Δθ:
  -4.66412613e-06 -7.34737014e-05 -3.70435888e-05  2.79658061e-04
  -1.12246268e-04]
 
+QUBO annealing Δθ:
+[-6.86464321e-06  7.92041740e-05  1.75506061e-05  4.27507820e-05
+ -2.82441740e-05  6.27768231e-05 -1.15502375e-04 -6.21560411e-05
+ -9.18347996e-07 -7.66395797e-05 -5.60374291e-05  2.68736784e-04
+ -1.10168162e-04]
+
 Sign comparison
 Classical: [-1.  1. -1. -1. -1. -1. -1. -1. -1. -1. -1.  1. -1.]
 VQLS:      [-1.  1.  1.  1.  1.  1. -1. -1. -1. -1.  1.  1. -1.]
 HHL:       [-1.  1.  1.  1. -1.  1. -1. -1. -1. -1. -1.  1. -1.]
+QUBO:      [-1.  1.  1.  1. -1.  1. -1. -1. -1. -1. -1.  1. -1.]
 
 One-step metrics vs classical
 --------------------------------------------------------------------------------
@@ -167,7 +189,17 @@ HHL:
   relative residual = 4.315057e-02
   relative error    = 7.179994e-01
   fidelity          = 0.48449886
-  success prob      = 7.809401e-04
+QUBO annealing:
+  residual          = 1.912185e-04
+  relative residual = 3.414803e-02
+  relative error    = 6.904617e-01
+  fidelity          = 0.52573277
+  QUBO binary variables = 130
+  QUBO bits per var     = 10
+  QUBO step             = 1.603372e-07
+
+HHL:
+  success prob          = 7.809401e-04
 
 ================================================================================
 RUNNING TRUE IEEE 14 FDLS
@@ -221,6 +253,22 @@ Voltage magnitudes |V|:
  1.06151671 1.09       1.05592837 1.05098075 1.05690348 1.0552018
  1.05037191 1.03552216]
 
+QUBO annealing FDLS
+--------------------------------------------------------------------------------
+converged  = False
+iterations = 12
+final loss = 1.383394e-04
+
+Voltage angles θ in degrees:
+[  0.          -4.98276553 -12.72537545 -10.31347571  -8.77428125
+ -14.22167064 -13.36028011 -13.36031218 -14.93911669 -15.09792412
+ -14.79137011 -15.076346   -15.15697249 -16.03433119]
+
+Voltage magnitudes |V|:
+[1.06       1.045      1.01       1.01766844 1.01951211 1.07
+ 1.06151858 1.09       1.05593099 1.05098388 1.05690549 1.05518767
+ 1.05038184 1.03552909]
+
 ================================================================================
 FDLS FINAL SOLUTION ERROR VS CLASSICAL FDLS
 ================================================================================
@@ -234,10 +282,148 @@ HHL FDLS
 --------------------------------------------------------------------------------
 angle error   = 1.248158e-04
 voltage error = 9.650103e-06
+
+QUBO annealing FDLS
+--------------------------------------------------------------------------------
+angle error   = 3.990571e-05
+voltage error = 1.866134e-05
 Saved: outputs\one_step_delta_theta_solution.png
 Saved: outputs\ieee14_fdls_loss_comparison.png
 Saved: outputs\ieee14_final_angle_solution.png
 Saved: outputs\ieee14_final_voltage_solution.png
+
+================================================================================
+QUANTUM OPTIMIZATION POWER FLOW: STARTER DC-OPF
+================================================================================
+OPF_INCLUDE_LINE_LIMITS = False
+RUN_QUANTUM_OPF         = True
+Classical DC-OPF       | iter=00 | cost=7642.623286 | grad=2.000e+03 | feas=2.312e-01 | gap=1.134e+00
+Classical DC-OPF       | iter=01 | cost=7694.831332 | grad=4.514e-01 | feas=8.449e-02 | gap=3.981e-01
+Classical DC-OPF       | iter=02 | cost=7696.313921 | grad=5.472e-03 | feas=8.224e-02 | gap=1.205e-01
+Classical DC-OPF       | iter=03 | cost=7760.537846 | grad=4.966e-03 | feas=2.329e-02 | gap=2.379e-02
+Classical DC-OPF       | iter=04 | cost=7762.109577 | grad=6.329e-03 | feas=2.207e-02 | gap=7.969e-03
+Classical DC-OPF       | iter=05 | cost=7789.362205 | grad=1.533e-03 | feas=3.751e-03 | gap=2.182e-03
+Classical DC-OPF       | iter=06 | cost=7795.707127 | grad=5.966e-15 | feas=1.194e-11 | gap=4.275e-04
+Classical DC-OPF       | iter=07 | cost=7795.706774 | grad=5.540e-15 | feas=3.322e-12 | gap=4.277e-05
+Classical DC-OPF       | iter=08 | cost=7795.706697 | grad=7.106e-15 | feas=1.103e-13 | gap=4.277e-06
+Classical DC-OPF       | iter=09 | cost=7795.706689 | grad=5.515e-15 | feas=1.101e-14 | gap=4.277e-07
+Classical DC-OPF       | iter=10 | cost=7795.706688 | grad=3.912e-15 | feas=1.101e-15 | gap=4.277e-08
+VQLS DC-OPF            | iter=00 | cost=7642.623286 | grad=2.000e+03 | feas=2.312e-01 | gap=1.134e+00
+VQLS DC-OPF            | iter=01 | cost=5362.360518 | grad=1.224e+03 | feas=1.027e+00 | gap=8.322e-01
+VQLS DC-OPF            | iter=02 | cost=1194.433212 | grad=7.882e+02 | feas=2.137e+00 | gap=2.229e+00
+VQLS DC-OPF            | iter=03 | cost=-1220.941605 | grad=7.883e+02 | feas=3.139e+00 | gap=2.224e+00
+VQLS DC-OPF            | iter=04 | cost=-1490.552957 | grad=7.876e+02 | feas=3.159e+00 | gap=2.236e+00
+VQLS DC-OPF            | iter=05 | cost=-1494.166947 | grad=6.237e+02 | feas=3.158e+00 | gap=2.150e+00
+HHL DC-OPF             | iter=00 | cost=7642.623286 | grad=2.000e+03 | feas=2.312e-01 | gap=1.134e+00
+HHL DC-OPF             | iter=01 | cost=-2877.505553 | grad=1.299e+03 | feas=1.937e-01 | gap=5.133e-01
+HHL DC-OPF             | iter=02 | cost=-8021.141981 | grad=5.301e+02 | feas=2.875e-01 | gap=5.667e-01
+HHL DC-OPF             | iter=03 | cost=-78483.694134 | grad=2.499e+02 | feas=1.938e+00 | gap=1.402e-01
+HHL DC-OPF             | iter=04 | cost=-89245.552578 | grad=1.598e+02 | feas=2.289e+00 | gap=1.249e+00
+HHL DC-OPF             | iter=05 | cost=-108596.685690 | grad=8.523e+01 | feas=3.111e+00 | gap=1.307e+00
+QUBO DC-OPF            | iter=00 | cost=7642.623286 | grad=2.000e+03 | feas=2.312e-01 | gap=1.134e+00
+QUBO DC-OPF            | iter=01 | cost=7641.152531 | grad=1.999e+03 | feas=2.310e-01 | gap=1.133e+00
+QUBO DC-OPF            | iter=02 | cost=7639.681787 | grad=1.998e+03 | feas=2.308e-01 | gap=1.133e+00
+QUBO DC-OPF            | iter=03 | cost=7638.211052 | grad=1.997e+03 | feas=2.306e-01 | gap=1.132e+00
+QUBO DC-OPF            | iter=04 | cost=7636.740328 | grad=1.996e+03 | feas=2.304e-01 | gap=1.131e+00
+QUBO DC-OPF            | iter=05 | cost=7635.269613 | grad=1.995e+03 | feas=2.302e-01 | gap=1.130e+00
+
+================================================================================
+Classical DC-OPF
+================================================================================
+converged             = True
+iterations            = 11
+KKT dimension         = 52 -> padded to 64
+cost                  = 7795.706688
+balance_inf           = 3.580469e-15
+max_gen_violation_mw  = 0.000000e+00
+max_line_violation_mw = 0.000000e+00
+include_line_limits   = False
+
+Generator dispatch Pg MW:
+  gen row  0: Pg =  210.839904 MW
+  gen row  1: Pg =  36.297725 MW
+  gen row  2: Pg =  0.000000 MW
+  gen row  3: Pg =  15.211438 MW
+  gen row  4: Pg =  0.000000 MW
+
+Voltage angles theta degrees:
+[  0.          -4.86681141 -12.6445496  -10.13294572  -8.59842244
+ -13.73941303 -13.52282975 -13.52282975 -15.18620735 -15.35826661
+ -14.75892832 -14.90215352 -15.11208469 -16.45282609]
+
+================================================================================
+VQLS DC-OPF
+================================================================================
+converged             = False
+iterations            = 6
+KKT dimension         = 52 -> padded to 64
+cost                  = -1675.244057
+balance_inf           = 1.373945e+01
+max_gen_violation_mw  = 8.425325e+01
+max_line_violation_mw = 0.000000e+00
+include_line_limits   = False
+
+Generator dispatch Pg MW:
+  gen row  0: Pg =  208.103449 MW
+  gen row  1: Pg =  34.329129 MW
+  gen row  2: Pg = -71.706603 MW
+  gen row  3: Pg = -65.213197 MW
+  gen row  4: Pg = -84.253246 MW
+
+Voltage angles theta degrees:
+[  0.           0.69592469 -35.090366   -15.70354157 -14.54111896
+ -22.10213836 -36.55374609 -77.76810204 -53.7731476  -14.34111977
+ -32.27739815 -22.97000514 -38.18763046 -23.1140192 ]
+
+================================================================================
+HHL DC-OPF
+================================================================================
+converged             = False
+iterations            = 6
+KKT dimension         = 52 -> padded to 64
+cost                  = -119047.973110
+balance_inf           = 8.942538e+00
+max_gen_violation_mw  = 1.666770e+03
+max_line_violation_mw = 0.000000e+00
+include_line_limits   = False
+
+Generator dispatch Pg MW:
+  gen row  0: Pg = -152.957754 MW
+  gen row  1: Pg = -26.294576 MW
+  gen row  2: Pg = -1666.073220 MW
+  gen row  3: Pg = -1666.769774 MW
+  gen row  4: Pg = -1663.546316 MW
+
+Voltage angles theta degrees:
+[   0.           -3.30219465  -86.51342662   -2.10013224    5.96263853
+  -34.28865879  -42.017756   -204.96397878    8.00304502   20.40909292
+    6.84867183   -3.7944987    -2.21300625   15.41051389]
+
+================================================================================
+QUBO DC-OPF
+================================================================================
+converged             = False
+iterations            = 6
+KKT dimension         = 52 -> padded to 64
+cost                  = 7633.798909
+balance_inf           = 2.028043e-02
+max_gen_violation_mw  = 5.012315e-02
+max_line_violation_mw = 0.000000e+00
+include_line_limits   = False
+
+Generator dispatch Pg MW:
+  gen row  0: Pg =  220.912950 MW
+  gen row  1: Pg =  38.015789 MW
+  gen row  2: Pg = -0.050123 MW
+  gen row  3: Pg = -0.050123 MW
+  gen row  4: Pg = -0.050123 MW
+
+Voltage angles theta degrees:
+[  0.          -5.0999652  -13.08698734 -10.78725337  -9.26598284
+ -15.90968674 -14.62288404 -14.63063232 -16.50272127 -16.83044386
+ -16.57526773 -17.00525431 -17.16278055 -18.09221252]
+Saved: outputs\dc_opf_gradcond.png
+Saved: outputs\dc_opf_generator_dispatch.png
 
 ================================================================================
 OUTPUT FILES
@@ -249,9 +435,17 @@ Matrix files:
   outputs\matrices/Bprime.csv
   outputs\matrices/Bdouble_prime.csv
   outputs\matrices/rhs_p_initial.csv
+  outputs\matrices/QUBO_Q_initial_scaled.csv
 Plots:
   outputs/one_step_delta_theta_solution.png
   outputs/ieee14_fdls_loss_comparison.png
   outputs/ieee14_final_angle_solution.png
   outputs/ieee14_final_voltage_solution.png
   outputs/vqls_no_cz_cost.png
+  outputs/qubo_annealing_energy.png
+
+Important note:
+QUBO annealing here means QUBO formulation + classical simulated annealing.
+It is not a real D-Wave quantum annealer run yet.
+  outputs/dc_opf_gradcond.png
+  outputs/dc_opf_generator_dispatch.png

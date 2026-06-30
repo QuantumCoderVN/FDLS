@@ -5,15 +5,32 @@ import matplotlib.pyplot as plt
 from config import OUTPUT_DIR
 
 
-def plot_one_step_solution(non_slack_buses, x_classical, x_vqls, x_hhl):
+def plot_one_step_solution(non_slack_buses, solutions):
+    """
+    solutions is a dict:
+
+        {
+            "Classical": x_classical,
+            "VQLS no-CZ": x_vqls,
+            "HHL": x_hhl,
+            "QUBO annealing": x_qubo,
+        }
+    """
+
     labels = [str(i + 1) for i in non_slack_buses]
     x = np.arange(len(labels))
-    width = 0.25
 
-    plt.figure(figsize=(12, 5))
-    plt.bar(x - width, x_classical, width, label="Classical")
-    plt.bar(x, x_vqls, width, label="VQLS no-CZ")
-    plt.bar(x + width, x_hhl, width, label="HHL")
+    names = list(solutions.keys())
+    n_methods = len(names)
+    width = min(0.8 / n_methods, 0.22)
+
+    plt.figure(figsize=(14, 5))
+
+    for k, name in enumerate(names):
+        offset = (k - (n_methods - 1) / 2) * width
+        values = np.real(np.asarray(solutions[name], dtype=float))
+        plt.bar(x + offset, values, width, label=name)
+
     plt.axhline(0, linewidth=1)
     plt.xticks(x, labels)
     plt.xlabel("Bus number")
@@ -58,13 +75,17 @@ def plot_fdls_loss(results):
 def plot_final_angle_solution(results, nbus):
     labels = [str(i + 1) for i in range(nbus)]
     x = np.arange(nbus)
-    width = 0.25
 
-    plt.figure(figsize=(12, 5))
+    n_methods = len(results)
+    width = min(0.8 / n_methods, 0.22)
+
+    plt.figure(figsize=(14, 5))
 
     for k, result in enumerate(results):
+        offset = (k - (n_methods - 1) / 2) * width
+
         plt.bar(
-            x + (k - 1) * width,
+            x + offset,
             result["va_deg"],
             width,
             label=result["name"],
@@ -88,13 +109,17 @@ def plot_final_angle_solution(results, nbus):
 def plot_final_voltage_solution(results, nbus):
     labels = [str(i + 1) for i in range(nbus)]
     x = np.arange(nbus)
-    width = 0.25
 
-    plt.figure(figsize=(12, 5))
+    n_methods = len(results)
+    width = min(0.8 / n_methods, 0.22)
+
+    plt.figure(figsize=(14, 5))
 
     for k, result in enumerate(results):
+        offset = (k - (n_methods - 1) / 2) * width
+
         plt.bar(
-            x + (k - 1) * width,
+            x + offset,
             result["vm"],
             width,
             label=result["name"],
