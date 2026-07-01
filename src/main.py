@@ -2,10 +2,10 @@ import os
 import sys
 import warnings
 import numpy as np
-from config import RUN_DC_OPF
+
+import config as cfg
+
 from dc_opf import run_dc_opf_comparison
-from config import RESULT_TEXT_FILE, MATRIX_DIR
-from config import QUBO_MAX_STEP_NORM_FACTOR
 from logger import Tee
 
 from ieee14_case import (
@@ -18,7 +18,6 @@ from ieee14_case import (
 )
 
 from exporter import export_matrices
-
 from math_utils import vector_metrics
 
 from classical_solver import solve_classical
@@ -40,7 +39,32 @@ warnings.filterwarnings("ignore", category=DeprecationWarning)
 
 
 # ============================================================
-# Solver wrappers for FDLS P-theta step
+# Safe config getter
+# ============================================================
+
+def get_cfg(name, default):
+    """
+    Read config variable safely.
+
+    Nếu config.py chưa có biến đó thì dùng default,
+    tránh lỗi ImportError / AttributeError.
+    """
+    return getattr(cfg, name, default)
+
+
+# ============================================================
+# Small helper
+# ============================================================
+
+def next_power_of_two(n):
+    n = int(n)
+    if n <= 1:
+        return 1
+    return 1 << (n - 1).bit_length()
+
+
+# ============================================================
+# Solver wrappers
 # ============================================================
 
 def classical_p_solver(A, b):
@@ -58,29 +82,30 @@ def hhl_p_solver(A, b):
 
 
 def qubo_p_solver(A, b):
+    """
+    RAW QUBO solver wrapper.
+
+    Dùng cho thí nghiệm không fallback / không fail-safe.
+    Không trả zero khi residual lớn.
+    Không clamp norm nghiệm.
+    Mục tiêu: xem QUBO tự nó kéo OPF đi đúng hay làm OPF nổ.
+    """
+
     x, info = solve_qubo_annealing(A, b, verbose=False)
 
-    # Nếu QUBO vẫn quá tệ thì trả bước nhỏ để không phá FDLS.
-    rel = info.get("relative_residual", 999.0)
+    rel = info.get("relative_residual", np.nan)
+    num_bin = info.get("num_binary_variables", None)
 
-    if rel > 1.0:
-        # Fail-safe: không cho QUBO update phá hệ.
-        return np.zeros_like(b)
-
-    # Chặn norm bước update.
-    classical_scale = np.linalg.norm(b) / max(np.linalg.norm(A, ord=2), 1e-14)
-    max_norm = QUBO_MAX_STEP_NORM_FACTOR * max(classical_scale, 1e-12)
-
-    norm_x = np.linalg.norm(x)
-
-    if norm_x > max_norm:
-        x = x * (max_norm / norm_x)
+    print(
+        f"[RAW QUBO] rel_residual={rel:.3e}, "
+        f"num_binary_variables={num_bin}"
+    )
 
     return x
 
 
 # ============================================================
-# Print metric helper
+# Print helpers
 # ============================================================
 
 def print_metrics(name, metrics):
@@ -91,39 +116,19 @@ def print_metrics(name, metrics):
     print(f"  fidelity          = {metrics['fidelity']:.8f}")
 
 
-# ============================================================
-# Main program
-# ============================================================
-
-def main():
-    print("\n" + "=" * 80)
-    print("IEEE 14-BUS DATA + FDLS + CLASSICAL/VQLS/HHL/QUBO")
-    print("=" * 80)
-
-    # ------------------------------------------------------------
-    # Load IEEE 14 data and build matrices
-    # ------------------------------------------------------------
-
-    case = load_ieee14_case()
-    Ybus = make_ybus(case)
-    Bprime, Bdouble = make_fdls_matrices(Ybus, case)
-
-    P_spec, Q_spec = make_specified_power(case)
-    vm0, va0 = initial_voltage(case)
-
-    P_calc0, Q_calc0 = calculated_power(Ybus, vm0, va0)
-
-    non_slack = case["non_slack"]
-
-    rhs_p0 = (P_spec - P_calc0)[non_slack] / vm0[non_slack]
-
-    export_matrices(Ybus, Bprime, Bdouble, rhs_p0, case)
+def print_case_info(case, Ybus, Bprime, Bdouble, rhs_p0):
+    case_name = case.get("case_name", get_cfg("POWER_CASE", "unknown"))
 
     print("\nCase information")
     print("-" * 80)
+    print(f"case         = {case_name}")
     print(f"baseMVA      = {case['base_mva']}")
     print(f"nbus         = {case['nbus']}")
-    print(f"slack index  = {case['slack']}  bus number {case['slack'] + 1}")
+
+    slack_idx = case["slack"]
+    slack_bus_number = int(case["bus"][slack_idx, 0])
+
+    print(f"slack index  = {slack_idx}  bus number {slack_bus_number}")
     print(f"PV indices   = {case['pv']}")
     print(f"PQ indices   = {case['pq']}")
     print(f"non-slack    = {case['non_slack']}")
@@ -134,8 +139,29 @@ def main():
     print(f"Bprime shape      = {Bprime.shape}")
     print(f"Bdouble shape     = {Bdouble.shape}")
     print(f"Initial rhs shape = {rhs_p0.shape}")
-    print("VQLS/HHL pad Bprime from 13x13 to 16x16.")
-    print("QUBO encodes 13 continuous variables into binary variables.")
+
+    pad_n = next_power_of_two(Bprime.shape[0])
+    print(
+        f"VQLS/HHL pad Bprime from "
+        f"{Bprime.shape[0]}x{Bprime.shape[1]} to {pad_n}x{pad_n}."
+    )
+
+    bits_per_var = get_cfg("QUBO_BITS_PER_VAR", None)
+    if bits_per_var is not None:
+        print(
+            f"QUBO would encode {Bprime.shape[0]} continuous variables "
+            f"into about {Bprime.shape[0] * bits_per_var} binary variables."
+        )
+
+
+# ============================================================
+# One-step benchmark
+# ============================================================
+
+def run_one_step_benchmark(case, Bprime, rhs_p0):
+    print("\n" + "=" * 80)
+    print("ONE-STEP P-THETA MATRIX SOLVE")
+    print("=" * 80)
 
     print("\nBprime matrix:")
     print(Bprime)
@@ -143,69 +169,91 @@ def main():
     print("\nInitial rhs_p = ΔP/|V|:")
     print(rhs_p0)
 
-    # ------------------------------------------------------------
-    # One-step P-theta matrix solve
-    # ------------------------------------------------------------
-
-    print("\n" + "=" * 80)
-    print("ONE-STEP IEEE 14 P-THETA MATRIX SOLVE")
-    print("=" * 80)
-
     x_classical = solve_classical(Bprime, rhs_p0)
-    x_vqls, vqls_info = solve_vqls_no_cz(Bprime, rhs_p0, verbose=True)
-    x_hhl, hhl_info = solve_hhl(Bprime, rhs_p0, verbose=True)
-    x_qubo, qubo_info = solve_qubo_annealing(Bprime, rhs_p0, verbose=True)
-
-    # Save initial QUBO matrix
-    if "Q_scaled" in qubo_info:
-        np.savetxt(
-            os.path.join(MATRIX_DIR, "QUBO_Q_initial_scaled.csv"),
-            qubo_info["Q_scaled"],
-            delimiter=",",
-            fmt="%.12e",
-        )
 
     print("\nClassical Δθ:")
     print(x_classical)
 
-    print("\nVQLS no-CZ Δθ:")
-    print(x_vqls)
+    solutions = {
+        "Classical": x_classical,
+    }
 
-    print("\nHHL Δθ:")
-    print(x_hhl)
+    # VQLS one-step
+    if get_cfg("RUN_ONE_STEP_VQLS", True):
+        x_vqls, vqls_info = solve_vqls_no_cz(Bprime, rhs_p0, verbose=True)
+        solutions["VQLS no-CZ"] = x_vqls
 
-    print("\nQUBO annealing Δθ:")
-    print(x_qubo)
+        print("\nVQLS no-CZ Δθ:")
+        print(x_vqls)
 
-    print("\nSign comparison")
-    print("Classical:", np.sign(x_classical))
-    print("VQLS:     ", np.sign(x_vqls))
-    print("HHL:      ", np.sign(x_hhl))
-    print("QUBO:     ", np.sign(x_qubo))
+        vqls_metrics = vector_metrics(Bprime, rhs_p0, x_vqls, x_classical)
 
-    vqls_metrics = vector_metrics(Bprime, rhs_p0, x_vqls, x_classical)
-    hhl_metrics = vector_metrics(Bprime, rhs_p0, x_hhl, x_classical)
-    qubo_metrics = vector_metrics(Bprime, rhs_p0, x_qubo, x_classical)
+        print("\nVQLS metrics vs classical")
+        print("-" * 80)
+        print_metrics("VQLS no-CZ", vqls_metrics)
 
-    print("\nOne-step metrics vs classical")
-    print("-" * 80)
-    print_metrics("VQLS no-CZ", vqls_metrics)
-    print_metrics("HHL", hhl_metrics)
-    print_metrics("QUBO annealing", qubo_metrics)
-    print(f"  QUBO binary variables = {qubo_info.get('num_binary_variables')}")
-    print(f"  QUBO bits per var     = {qubo_info.get('bits_per_var')}")
-    print(f"  QUBO step             = {qubo_info.get('step'):.6e}")
+    # HHL one-step
+    if get_cfg("RUN_ONE_STEP_HHL", False):
+        x_hhl, hhl_info = solve_hhl(Bprime, rhs_p0, verbose=True)
+        solutions["HHL"] = x_hhl
 
-    print("\nHHL:")
-    print(f"  success prob          = {hhl_info['success_probability']:.6e}")
+        print("\nHHL Δθ:")
+        print(x_hhl)
 
-    # ------------------------------------------------------------
-    # True FDLS with four P-theta solvers
-    # ------------------------------------------------------------
+        hhl_metrics = vector_metrics(Bprime, rhs_p0, x_hhl, x_classical)
 
+        print("\nHHL metrics vs classical")
+        print("-" * 80)
+        print_metrics("HHL", hhl_metrics)
+        print(f"  success prob = {hhl_info.get('success_probability', np.nan):.6e}")
+
+    # QUBO one-step
+    if get_cfg("RUN_ONE_STEP_QUBO", False):
+        x_qubo, qubo_info = solve_qubo_annealing(Bprime, rhs_p0, verbose=True)
+        solutions["QUBO annealing"] = x_qubo
+
+        print("\nQUBO annealing Δθ:")
+        print(x_qubo)
+
+        qubo_metrics = vector_metrics(Bprime, rhs_p0, x_qubo, x_classical)
+
+        print("\nQUBO metrics vs classical")
+        print("-" * 80)
+        print_metrics("QUBO annealing", qubo_metrics)
+        print(f"  QUBO binary variables = {qubo_info.get('num_binary_variables')}")
+        print(f"  QUBO bits per var     = {qubo_info.get('bits_per_var')}")
+
+        if "step" in qubo_info:
+            print(f"  QUBO step             = {qubo_info.get('step'):.6e}")
+
+        if "Q_scaled" in qubo_info:
+            os.makedirs(cfg.MATRIX_DIR, exist_ok=True)
+            np.savetxt(
+                os.path.join(cfg.MATRIX_DIR, "QUBO_Q_initial_scaled.csv"),
+                qubo_info["Q_scaled"],
+                delimiter=",",
+                fmt="%.12e",
+            )
+
+    # Plot only available solutions
+    try:
+        plot_one_step_solution(case["non_slack"], solutions)
+    except Exception as exc:
+        print(f"[warning] Could not create one-step plot: {exc}")
+
+    return solutions
+
+
+# ============================================================
+# FDLS benchmark
+# ============================================================
+
+def run_fdls_benchmark(case, Ybus, Bprime, Bdouble):
     print("\n" + "=" * 80)
-    print("RUNNING TRUE IEEE 14 FDLS")
+    print("RUNNING TRUE FDLS")
     print("=" * 80)
+
+    results = []
 
     result_classical = fdls_power_flow(
         case,
@@ -215,40 +263,40 @@ def main():
         classical_p_solver,
         "Classical FDLS",
     )
+    results.append(result_classical)
 
-    result_vqls = fdls_power_flow(
-        case,
-        Ybus,
-        Bprime,
-        Bdouble,
-        vqls_p_solver,
-        "VQLS no-CZ FDLS",
-    )
+    if get_cfg("RUN_FDLS_VQLS", True):
+        result_vqls = fdls_power_flow(
+            case,
+            Ybus,
+            Bprime,
+            Bdouble,
+            vqls_p_solver,
+            "VQLS no-CZ FDLS",
+        )
+        results.append(result_vqls)
 
-    result_hhl = fdls_power_flow(
-        case,
-        Ybus,
-        Bprime,
-        Bdouble,
-        hhl_p_solver,
-        "HHL FDLS",
-    )
+    if get_cfg("RUN_FDLS_HHL", False):
+        result_hhl = fdls_power_flow(
+            case,
+            Ybus,
+            Bprime,
+            Bdouble,
+            hhl_p_solver,
+            "HHL FDLS",
+        )
+        results.append(result_hhl)
 
-    result_qubo = fdls_power_flow(
-        case,
-        Ybus,
-        Bprime,
-        Bdouble,
-        qubo_p_solver,
-        "QUBO annealing FDLS",
-    )
-
-    results = [
-        result_classical,
-        result_vqls,
-        result_hhl,
-        result_qubo,
-    ]
+    if get_cfg("RUN_FDLS_QUBO", False):
+        result_qubo = fdls_power_flow(
+            case,
+            Ybus,
+            Bprime,
+            Bdouble,
+            qubo_p_solver,
+            "QUBO annealing FDLS",
+        )
+        results.append(result_qubo)
 
     for result in results:
         print("\n" + result["name"])
@@ -263,10 +311,7 @@ def main():
         print("\nVoltage magnitudes |V|:")
         print(result["vm"])
 
-    # ------------------------------------------------------------
-    # Final error vs classical FDLS
-    # ------------------------------------------------------------
-
+    # Error vs classical
     print("\n" + "=" * 80)
     print("FDLS FINAL SOLUTION ERROR VS CLASSICAL FDLS")
     print("=" * 80)
@@ -274,7 +319,7 @@ def main():
     ref_va = result_classical["va"]
     ref_vm = result_classical["vm"]
 
-    for result in [result_vqls, result_hhl, result_qubo]:
+    for result in results[1:]:
         angle_error = np.linalg.norm(result["va"] - ref_va)
         voltage_error = np.linalg.norm(result["vm"] - ref_vm)
 
@@ -283,35 +328,112 @@ def main():
         print(f"angle error   = {angle_error:.6e}")
         print(f"voltage error = {voltage_error:.6e}")
 
-    # ------------------------------------------------------------
-    # Plots
-    # ------------------------------------------------------------
+    try:
+        plot_fdls_loss(results)
+        plot_final_angle_solution(results, case["nbus"])
+        plot_final_voltage_solution(results, case["nbus"])
+    except Exception as exc:
+        print(f"[warning] Could not create FDLS plots: {exc}")
 
-    plot_one_step_solution(
-        non_slack,
-        {
-            "Classical": x_classical,
-            "VQLS no-CZ": x_vqls,
-            "HHL": x_hhl,
-            "QUBO annealing": x_qubo,
-        },
+    return results
+
+
+# ============================================================
+# DC-OPF benchmark
+# ============================================================
+
+def run_opf_benchmark(case):
+    print("\n" + "=" * 80)
+    print("RUNNING DC-OPF / QUANTUM OPTIMIZATION POWER FLOW")
+    print("=" * 80)
+
+    run_vqls = get_cfg("RUN_OPF_VQLS", True)
+    run_hhl = get_cfg("RUN_OPF_HHL", False)
+    run_qubo = get_cfg("RUN_OPF_QUBO", False)
+
+    print("\nOPF solvers enabled")
+    print("-" * 80)
+    print(f"Classical = True")
+    print(f"VQLS      = {run_vqls}")
+    print(f"HHL       = {run_hhl}")
+    print(f"QUBO      = {run_qubo}")
+
+    opf_results = run_dc_opf_comparison(
+        case,
+        classical_solver=classical_p_solver,
+        vqls_solver=vqls_p_solver if run_vqls else None,
+        hhl_solver=hhl_p_solver if run_hhl else None,
+        qubo_solver=qubo_p_solver if run_qubo else None,
     )
 
-    plot_fdls_loss(results)
-    plot_final_angle_solution(results, case["nbus"])
-    plot_final_voltage_solution(results, case["nbus"])
+    return opf_results
+
+
+# ============================================================
+# Main program
+# ============================================================
+
+def main():
+    print("\n" + "=" * 80)
+    print("POWER FLOW / FDLS / QUANTUM OPF EXPERIMENT")
+    print("=" * 80)
+
+    print("\nRun configuration")
+    print("-" * 80)
+    print(f"POWER_CASE             = {get_cfg('POWER_CASE', 'unknown')}")
+    print(f"RUN_ONE_STEP_BENCHMARK = {get_cfg('RUN_ONE_STEP_BENCHMARK', False)}")
+    print(f"RUN_FDLS_BENCHMARK     = {get_cfg('RUN_FDLS_BENCHMARK', False)}")
+    print(f"RUN_DC_OPF             = {get_cfg('RUN_DC_OPF', True)}")
+
     # ------------------------------------------------------------
-    # Quantum Optimization Power Flow / DC-OPF
+    # Load selected case and build matrices
     # ------------------------------------------------------------
 
-    if RUN_DC_OPF:
-        opf_results = run_dc_opf_comparison(
-            case,
-            classical_solver=classical_p_solver,
-            vqls_solver=vqls_p_solver,
-            hhl_solver=hhl_p_solver,
-            qubo_solver=qubo_p_solver,
-        )
+    case = load_ieee14_case()
+
+    Ybus = make_ybus(case)
+    Bprime, Bdouble = make_fdls_matrices(Ybus, case)
+
+    P_spec, Q_spec = make_specified_power(case)
+    vm0, va0 = initial_voltage(case)
+
+    P_calc0, Q_calc0 = calculated_power(Ybus, vm0, va0)
+
+    non_slack = case["non_slack"]
+    rhs_p0 = (P_spec - P_calc0)[non_slack] / vm0[non_slack]
+
+    os.makedirs(cfg.MATRIX_DIR, exist_ok=True)
+    export_matrices(Ybus, Bprime, Bdouble, rhs_p0, case)
+
+    print_case_info(case, Ybus, Bprime, Bdouble, rhs_p0)
+
+    # ------------------------------------------------------------
+    # Optional: one-step matrix solve
+    # ------------------------------------------------------------
+
+    if get_cfg("RUN_ONE_STEP_BENCHMARK", False):
+        run_one_step_benchmark(case, Bprime, rhs_p0)
+    else:
+        print("\n[skip] ONE-STEP benchmark is disabled.")
+
+    # ------------------------------------------------------------
+    # Optional: full FDLS
+    # ------------------------------------------------------------
+
+    if get_cfg("RUN_FDLS_BENCHMARK", False):
+        run_fdls_benchmark(case, Ybus, Bprime, Bdouble)
+    else:
+        print("\n[skip] FDLS benchmark is disabled.")
+
+    # ------------------------------------------------------------
+    # Optional: DC-OPF
+    # ------------------------------------------------------------
+
+    if get_cfg("RUN_DC_OPF", True):
+        run_opf_benchmark(case)
+    else:
+        print("\n[skip] DC-OPF benchmark is disabled.")
+
     # ------------------------------------------------------------
     # Output summary
     # ------------------------------------------------------------
@@ -320,32 +442,38 @@ def main():
     print("OUTPUT FILES")
     print("=" * 80)
 
-    print(f"Text result file: {RESULT_TEXT_FILE}")
+    print(f"Text result file: {cfg.RESULT_TEXT_FILE}")
 
-    print("Matrix files:")
-    print(f"  {MATRIX_DIR}/Ybus_real.csv")
-    print(f"  {MATRIX_DIR}/Ybus_imag.csv")
-    print(f"  {MATRIX_DIR}/Bprime.csv")
-    print(f"  {MATRIX_DIR}/Bdouble_prime.csv")
-    print(f"  {MATRIX_DIR}/rhs_p_initial.csv")
-    print(f"  {MATRIX_DIR}/QUBO_Q_initial_scaled.csv")
+    print("\nMatrix files:")
+    print(f"  {cfg.MATRIX_DIR}/Ybus_real.csv")
+    print(f"  {cfg.MATRIX_DIR}/Ybus_imag.csv")
+    print(f"  {cfg.MATRIX_DIR}/Bprime.csv")
+    print(f"  {cfg.MATRIX_DIR}/Bdouble_prime.csv")
+    print(f"  {cfg.MATRIX_DIR}/rhs_p_initial.csv")
 
-    print("Plots:")
+    print("\nPossible plots:")
     print("  outputs/one_step_delta_theta_solution.png")
     print("  outputs/ieee14_fdls_loss_comparison.png")
     print("  outputs/ieee14_final_angle_solution.png")
     print("  outputs/ieee14_final_voltage_solution.png")
     print("  outputs/vqls_no_cz_cost.png")
     print("  outputs/qubo_annealing_energy.png")
+    print("  outputs/dc_opf_gradcond.png")
+    print("  outputs/dc_opf_generator_dispatch.png")
 
     print("\nImportant note:")
     print("QUBO annealing here means QUBO formulation + classical simulated annealing.")
     print("It is not a real D-Wave quantum annealer run yet.")
 
-    print("  outputs/dc_opf_gradcond.png")
-    print("  outputs/dc_opf_generator_dispatch.png")
+
+# ============================================================
+# Entry point
+# ============================================================
+
 if __name__ == "__main__":
-    with open(RESULT_TEXT_FILE, "w", encoding="utf-8") as result_file:
+    os.makedirs(os.path.dirname(cfg.RESULT_TEXT_FILE), exist_ok=True)
+
+    with open(cfg.RESULT_TEXT_FILE, "w", encoding="utf-8") as result_file:
         original_stdout = sys.stdout
         sys.stdout = Tee(sys.stdout, result_file)
 

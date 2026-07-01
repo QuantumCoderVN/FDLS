@@ -1,427 +1,177 @@
 
 ================================================================================
-IEEE 14-BUS DATA + FDLS + CLASSICAL/VQLS/HHL/QUBO
+POWER FLOW / FDLS / QUANTUM OPF EXPERIMENT
 ================================================================================
+
+Run configuration
+--------------------------------------------------------------------------------
+POWER_CASE             = case6ww
+RUN_ONE_STEP_BENCHMARK = False
+RUN_FDLS_BENCHMARK     = False
+RUN_DC_OPF             = True
 
 Case information
 --------------------------------------------------------------------------------
+case         = case6ww
 baseMVA      = 100.0
-nbus         = 14
+nbus         = 6
 slack index  = 0  bus number 1
-PV indices   = [np.int64(1), np.int64(2), np.int64(5), np.int64(7)]
-PQ indices   = [np.int64(3), np.int64(4), np.int64(6), np.int64(8), np.int64(9), np.int64(10), np.int64(11), np.int64(12), np.int64(13)]
-non-slack    = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]
+PV indices   = [np.int64(1), np.int64(2)]
+PQ indices   = [np.int64(3), np.int64(4), np.int64(5)]
+non-slack    = [1, 2, 3, 4, 5]
 
 Matrix sizes
 --------------------------------------------------------------------------------
-Ybus shape        = (14, 14)
-Bprime shape      = (13, 13)
-Bdouble shape     = (9, 9)
-Initial rhs shape = (13,)
-VQLS/HHL pad Bprime from 13x13 to 16x16.
-QUBO encodes 13 continuous variables into binary variables.
+Ybus shape        = (6, 6)
+Bprime shape      = (5, 5)
+Bdouble shape     = (3, 3)
+Initial rhs shape = (5,)
+VQLS/HHL pad Bprime from 5x5 to 8x8.
+QUBO would encode 5 continuous variables into about 15 binary variables.
 
-Bprime matrix:
-[[ 30.2721154   -4.78186315  -5.11583833  -5.1939274   -0.
-   -0.          -0.          -0.          -0.          -0.
-   -0.          -0.          -0.        ]
- [ -4.78186315   9.82238013  -5.06881698  -0.          -0.
-   -0.          -0.          -0.          -0.          -0.
-   -0.          -0.          -0.        ]
- [ -5.11583833  -5.06881698  38.65417121 -21.57855398  -0.
-   -4.88951266  -0.          -1.85549956  -0.          -0.
-   -0.          -0.          -0.        ]
- [ -5.1939274   -0.         -21.57855398  35.53363946  -4.25744534
-   -0.          -0.          -0.          -0.          -0.
-   -0.          -0.          -0.        ]
- [ -0.          -0.          -0.          -4.25744534  17.34073281
-   -0.          -0.          -0.          -0.          -4.09407434
-   -3.17596397  -6.10275545  -0.        ]
- [ -0.          -0.          -4.88951266  -0.          -0.
-   19.54900595  -5.67697985  -9.09008272  -0.          -0.
-   -0.          -0.          -0.        ]
- [ -0.          -0.          -0.          -0.          -0.
-   -5.67697985   5.67697985  -0.          -0.          -0.
-   -0.          -0.          -0.        ]
- [ -0.          -0.          -1.85549956  -0.          -0.
-   -9.09008272  -0.          24.09250638 -10.36539413  -0.
-   -0.          -0.          -3.02905046]
- [ -0.          -0.          -0.          -0.          -0.
-   -0.          -0.         -10.36539413  14.76833788  -4.40294375
-   -0.          -0.          -0.        ]
- [ -0.          -0.          -0.          -0.          -4.09407434
-   -0.          -0.          -0.          -4.40294375   8.49701809
-   -0.          -0.          -0.        ]
- [ -0.          -0.          -0.          -0.          -3.17596397
-   -0.          -0.          -0.          -0.          -0.
-    5.42793859  -2.25197463  -0.        ]
- [ -0.          -0.          -0.          -0.          -6.10275545
-   -0.          -0.          -0.          -0.          -0.
-   -2.25197463  10.66969355  -2.31496348]
- [ -0.          -0.          -0.          -0.          -0.
-   -0.          -0.          -3.02905046  -0.          -0.
-   -0.          -2.31496348   5.34401393]]
+[skip] ONE-STEP benchmark is disabled.
 
-Initial rhs_p = ΔP/|V|:
-[-0.00089514  0.0007443  -0.00079126  0.00129263 -0.00186127  0.00231372
- -0.00105225 -0.00184065  0.00086418 -0.00057227 -0.00086     0.00337018
- -0.00110429]
+[skip] FDLS benchmark is disabled.
 
 ================================================================================
-ONE-STEP IEEE 14 P-THETA MATRIX SOLVE
+RUNNING DC-OPF / QUANTUM OPTIMIZATION POWER FLOW
 ================================================================================
 
-================================================================================
-VQLS NO-CZ SOLVER
-================================================================================
-Original dimension = 13
-Padded dimension   = 16
-System qubits      = 4
-Layers             = 3
-Parameters         = 24
-Steps              = 100
-Restarts           = 5
-Pauli terms        = 88
-No CZ gate is used.
-
-Pauli decomposition of padded scaled A:
-SparsePauliOp(['IIII', 'IIIX', 'IIIZ', 'IIXI', 'IIXX', 'IIXZ', 'IIYY', 'IIZI', 'IIZX', 'IIZZ', 'IXIX', 'IXXX', 'IXYY', 'IXZX', 'IYIY', 'IYXY', 'IYYX', 'IYZY', 'IZII', 'IZIX', 'IZIZ', 'IZXI', 'IZXX', 'IZXZ', 'IZYY', 'IZZI', 'IZZX', 'IZZZ', 'XIXX', 'XIYY', 'XXIX', 'XXXI', 'XXXX', 'XXXZ', 'XXYY', 'XXZX', 'XYIY', 'XYXY', 'XYYI', 'XYYX', 'XYYZ', 'XYZY', 'XZXX', 'XZYY', 'YIXY', 'YIYX', 'YXIY', 'YXXY', 'YXYI', 'YXYX', 'YXYZ', 'YXZY', 'YYIX', 'YYXI', 'YYXX', 'YYXZ', 'YYYY', 'YYZX', 'YZXY', 'YZYX', 'ZIII', 'ZIIX', 'ZIIZ', 'ZIXI', 'ZIXX', 'ZIXZ', 'ZIYY', 'ZIZI', 'ZIZX', 'ZIZZ', 'ZXIX', 'ZXXX', 'ZXYY', 'ZXZX', 'ZYIY', 'ZYXY', 'ZYYX', 'ZYZY', 'ZZII', 'ZZIX', 'ZZIZ', 'ZZXI', 'ZZXX', 'ZZXZ', 'ZZYY', 'ZZZI', 'ZZZX', 'ZZZZ'],
-              coeffs=[ 0.23997975+0.j, -0.06930298+0.j,  0.00873237+0.j, -0.02981986+0.j,
- -0.03345931+0.j,  0.0083424 +0.j, -0.01165401+0.j, -0.01622755+0.j,
-  0.03074305+0.j,  0.05184136+0.j, -0.00389491+0.j, -0.02405989+0.j,
-  0.00353259-0.j,  0.00389491+0.j,  0.00389491-0.j, -0.00353259+0.j,
- -0.02405989+0.j, -0.00389491+0.j,  0.08253935+0.j, -0.06930298+0.j,
-  0.0429055 +0.j,  0.0083424 +0.j, -0.00962605+0.j, -0.02981986+0.j,
-  0.01217925-0.j, -0.04029236+0.j,  0.03074305+0.j,  0.00870189+0.j,
- -0.00635832+0.j,  0.00635832-0.j, -0.00859393+0.j, -0.00666671+0.j,
- -0.03456854+0.j, -0.00666671+0.j,  0.03456854-0.j, -0.00859393+0.j,
- -0.00859393+0.j,  0.00894777-0.j, -0.00666671+0.j,  0.00894777-0.j,
- -0.00666671+0.j, -0.00859393+0.j,  0.00635832+0.j, -0.00635832+0.j,
- -0.00635832+0.j, -0.00635832+0.j,  0.00859393-0.j, -0.00894777+0.j,
-  0.00666671-0.j, -0.00894777+0.j,  0.00666671-0.j,  0.00859393-0.j,
- -0.00859393+0.j, -0.00666671+0.j, -0.03456854+0.j, -0.00666671+0.j,
-  0.03456854+0.j, -0.00859393+0.j,  0.00635832-0.j,  0.00635832-0.j,
-  0.13983728+0.j, -0.0413641 +0.j, -0.00254739+0.j, -0.02981986+0.j,
- -0.03345931+0.j,  0.0083424 +0.j, -0.01165401+0.j, -0.04039201+0.j,
-  0.03977331+0.j,  0.01855551+0.j, -0.00389491+0.j, -0.01434114+0.j,
- -0.00618616+0.j,  0.00389491+0.j,  0.00389491-0.j,  0.00618616-0.j,
- -0.01434114+0.j, -0.00389491+0.j,  0.01742696+0.j, -0.0413641 +0.j,
-  0.04986291+0.j,  0.0083424 +0.j, -0.00962605+0.j, -0.02981986+0.j,
-  0.01217925-0.j, -0.04621965+0.j,  0.03977331+0.j, -0.00634679+0.j])
-Restart  0 | cost=1.414546e-01 | relative residual=3.931883e-01
-Restart  1 | cost=1.534779e-01 | relative residual=6.984908e-01
-Restart  2 | cost=7.242017e-02 | relative residual=2.515868e-01
-Restart  3 | cost=1.850431e-01 | relative residual=3.891628e-01
-Restart  4 | cost=1.059112e-01 | relative residual=6.328622e-01
-
-Best VQLS:
-restart           = 2
-cost              = 7.242017e-02
-relative residual = 2.515868e-01
-k                 = (-0.0008092222154419242+0j)
-
-================================================================================
-HHL SOLVER
-================================================================================
-Original dimension    = 13
-Padded dimension      = 16
-System qubits         = 4
-Phase qubits          = 6
-time                  = 0.6
-scale factor          = 8.39645898e-02
-rotation constant     = 3.70447201e-02
-success probability   = 7.80940111e-04
-k                     = (0.00036013797996585614+0j)
-
-================================================================================
-IMPROVED QUBO / ANNEALING SOLVER
-================================================================================
-Solves correction form: x <- x + dx
-This is still classical simulated annealing, not D-Wave.
-variables              = 13
-bits per variable      = 10
-binary variables       = 130
-initial bound          = 2.00000000e-03
-final bound            = 3.69056250e-05
-step last              = 1.60337243e-07
-relative residual      = 3.41480289e-02
-residual history       = [1.0, 0.27730387180971766, 0.16041268748131865, 0.07808455770394407, 0.04583728671007355]
-
-Classical Δθ:
-[-2.95597285e-05  4.33256871e-05 -3.49966445e-05 -5.35874953e-06
- -1.34901783e-04 -3.77792895e-05 -2.23133255e-04 -1.77602742e-04
- -1.24888696e-04 -1.97062381e-04 -1.75565288e-04  1.48976155e-04
- -2.42773435e-04]
-
-VQLS no-CZ Δθ:
-[-1.06858091e-05  6.36128217e-06  1.34806683e-05  5.07897598e-05
-  4.17781031e-05  4.86082654e-05 -5.98571691e-05 -1.10742826e-04
- -9.82198967e-05 -1.23565073e-04  1.75845164e-04  3.69926458e-04
- -7.57842595e-05]
-
-HHL Δθ:
-[-4.57883390e-06  8.53952658e-05  2.42971352e-05  4.60514568e-05
- -1.81069706e-05  6.45939243e-05 -1.15125173e-04 -6.57319935e-05
- -4.66412613e-06 -7.34737014e-05 -3.70435888e-05  2.79658061e-04
- -1.12246268e-04]
-
-QUBO annealing Δθ:
-[-6.86464321e-06  7.92041740e-05  1.75506061e-05  4.27507820e-05
- -2.82441740e-05  6.27768231e-05 -1.15502375e-04 -6.21560411e-05
- -9.18347996e-07 -7.66395797e-05 -5.60374291e-05  2.68736784e-04
- -1.10168162e-04]
-
-Sign comparison
-Classical: [-1.  1. -1. -1. -1. -1. -1. -1. -1. -1. -1.  1. -1.]
-VQLS:      [-1.  1.  1.  1.  1.  1. -1. -1. -1. -1.  1.  1. -1.]
-HHL:       [-1.  1.  1.  1. -1.  1. -1. -1. -1. -1. -1.  1. -1.]
-QUBO:      [-1.  1.  1.  1. -1.  1. -1. -1. -1. -1. -1.  1. -1.]
-
-One-step metrics vs classical
+OPF solvers enabled
 --------------------------------------------------------------------------------
-VQLS no-CZ:
-  residual          = 1.408809e-03
-  relative residual = 2.515868e-01
-  relative error    = 1.021858e+00
-  fidelity          = 0.18238826
-HHL:
-  residual          = 2.416300e-04
-  relative residual = 4.315057e-02
-  relative error    = 7.179994e-01
-  fidelity          = 0.48449886
-QUBO annealing:
-  residual          = 1.912185e-04
-  relative residual = 3.414803e-02
-  relative error    = 6.904617e-01
-  fidelity          = 0.52573277
-  QUBO binary variables = 130
-  QUBO bits per var     = 10
-  QUBO step             = 1.603372e-07
-
-HHL:
-  success prob          = 7.809401e-04
-
-================================================================================
-RUNNING TRUE IEEE 14 FDLS
-================================================================================
-
-Classical FDLS
---------------------------------------------------------------------------------
-converged  = False
-iterations = 12
-final loss = 2.083957e-04
-
-Voltage angles θ in degrees:
-[  0.          -4.98258826 -12.7250985  -10.31290092  -8.77385138
- -14.22093249 -13.35962961 -13.35962961 -14.93852434 -15.09728893
- -14.79061636 -15.07529639 -15.15639167 -16.03369163]
-
-Voltage magnitudes |V|:
-[1.06       1.045      1.01       1.01767071 1.01951381 1.07
- 1.06151918 1.09       1.05593105 1.05098404 1.05690619 1.05520428
- 1.05037423 1.0355267 ]
-
-VQLS no-CZ FDLS
---------------------------------------------------------------------------------
-converged  = False
-iterations = 12
-final loss = 3.969133e-04
-
-Voltage angles θ in degrees:
-[  0.          -4.98387536 -12.72725295 -10.31544323  -8.77583694
- -14.22244075 -13.36485259 -13.36658135 -14.94277196 -15.10118602
- -14.79375184 -15.07666698 -15.1574176  -16.03612773]
-
-Voltage magnitudes |V|:
-[1.06       1.045      1.01       1.01766081 1.01950768 1.07
- 1.06150823 1.09       1.05591419 1.05096662 1.05689519 1.05520685
- 1.05038654 1.03551803]
-
-HHL FDLS
---------------------------------------------------------------------------------
-converged  = False
-iterations = 12
-final loss = 2.230247e-04
-
-Voltage angles θ in degrees:
-[  0.          -4.98314795 -12.72606286 -10.31405952  -8.774918
- -14.22316999 -13.36159683 -13.36179005 -14.94068304 -15.09957281
- -14.79299326 -15.07777991 -15.15885152 -16.03616776]
-
-Voltage magnitudes |V|:
-[1.06       1.045      1.01       1.01766683 1.01951002 1.07
- 1.06151671 1.09       1.05592837 1.05098075 1.05690348 1.0552018
- 1.05037191 1.03552216]
-
-QUBO annealing FDLS
---------------------------------------------------------------------------------
-converged  = False
-iterations = 12
-final loss = 1.383394e-04
-
-Voltage angles θ in degrees:
-[  0.          -4.98276553 -12.72537545 -10.31347571  -8.77428125
- -14.22167064 -13.36028011 -13.36031218 -14.93911669 -15.09792412
- -14.79137011 -15.076346   -15.15697249 -16.03433119]
-
-Voltage magnitudes |V|:
-[1.06       1.045      1.01       1.01766844 1.01951211 1.07
- 1.06151858 1.09       1.05593099 1.05098388 1.05690549 1.05518767
- 1.05038184 1.03552909]
-
-================================================================================
-FDLS FINAL SOLUTION ERROR VS CLASSICAL FDLS
-================================================================================
-
-VQLS no-CZ FDLS
---------------------------------------------------------------------------------
-angle error   = 2.112579e-04
-voltage error = 3.460793e-05
-
-HHL FDLS
---------------------------------------------------------------------------------
-angle error   = 1.248158e-04
-voltage error = 9.650103e-06
-
-QUBO annealing FDLS
---------------------------------------------------------------------------------
-angle error   = 3.990571e-05
-voltage error = 1.866134e-05
-Saved: outputs\one_step_delta_theta_solution.png
-Saved: outputs\ieee14_fdls_loss_comparison.png
-Saved: outputs\ieee14_final_angle_solution.png
-Saved: outputs\ieee14_final_voltage_solution.png
+Classical = True
+VQLS      = True
+HHL       = True
+QUBO      = True
 
 ================================================================================
 QUANTUM OPTIMIZATION POWER FLOW: STARTER DC-OPF
 ================================================================================
 OPF_INCLUDE_LINE_LIMITS = False
 RUN_QUANTUM_OPF         = True
-Classical DC-OPF       | iter=00 | cost=7642.623286 | grad=2.000e+03 | feas=2.312e-01 | gap=1.134e+00
-Classical DC-OPF       | iter=01 | cost=7694.831332 | grad=4.514e-01 | feas=8.449e-02 | gap=3.981e-01
-Classical DC-OPF       | iter=02 | cost=7696.313921 | grad=5.472e-03 | feas=8.224e-02 | gap=1.205e-01
-Classical DC-OPF       | iter=03 | cost=7760.537846 | grad=4.966e-03 | feas=2.329e-02 | gap=2.379e-02
-Classical DC-OPF       | iter=04 | cost=7762.109577 | grad=6.329e-03 | feas=2.207e-02 | gap=7.969e-03
-Classical DC-OPF       | iter=05 | cost=7789.362205 | grad=1.533e-03 | feas=3.751e-03 | gap=2.182e-03
-Classical DC-OPF       | iter=06 | cost=7795.707127 | grad=5.966e-15 | feas=1.194e-11 | gap=4.275e-04
-Classical DC-OPF       | iter=07 | cost=7795.706774 | grad=5.540e-15 | feas=3.322e-12 | gap=4.277e-05
-Classical DC-OPF       | iter=08 | cost=7795.706697 | grad=7.106e-15 | feas=1.103e-13 | gap=4.277e-06
-Classical DC-OPF       | iter=09 | cost=7795.706689 | grad=5.515e-15 | feas=1.101e-14 | gap=4.277e-07
-Classical DC-OPF       | iter=10 | cost=7795.706688 | grad=3.912e-15 | feas=1.101e-15 | gap=4.277e-08
-VQLS DC-OPF            | iter=00 | cost=7642.623286 | grad=2.000e+03 | feas=2.312e-01 | gap=1.134e+00
-VQLS DC-OPF            | iter=01 | cost=5362.360518 | grad=1.224e+03 | feas=1.027e+00 | gap=8.322e-01
-VQLS DC-OPF            | iter=02 | cost=1194.433212 | grad=7.882e+02 | feas=2.137e+00 | gap=2.229e+00
-VQLS DC-OPF            | iter=03 | cost=-1220.941605 | grad=7.883e+02 | feas=3.139e+00 | gap=2.224e+00
-VQLS DC-OPF            | iter=04 | cost=-1490.552957 | grad=7.876e+02 | feas=3.159e+00 | gap=2.236e+00
-VQLS DC-OPF            | iter=05 | cost=-1494.166947 | grad=6.237e+02 | feas=3.158e+00 | gap=2.150e+00
-HHL DC-OPF             | iter=00 | cost=7642.623286 | grad=2.000e+03 | feas=2.312e-01 | gap=1.134e+00
-HHL DC-OPF             | iter=01 | cost=-2877.505553 | grad=1.299e+03 | feas=1.937e-01 | gap=5.133e-01
-HHL DC-OPF             | iter=02 | cost=-8021.141981 | grad=5.301e+02 | feas=2.875e-01 | gap=5.667e-01
-HHL DC-OPF             | iter=03 | cost=-78483.694134 | grad=2.499e+02 | feas=1.938e+00 | gap=1.402e-01
-HHL DC-OPF             | iter=04 | cost=-89245.552578 | grad=1.598e+02 | feas=2.289e+00 | gap=1.249e+00
-HHL DC-OPF             | iter=05 | cost=-108596.685690 | grad=8.523e+01 | feas=3.111e+00 | gap=1.307e+00
-QUBO DC-OPF            | iter=00 | cost=7642.623286 | grad=2.000e+03 | feas=2.312e-01 | gap=1.134e+00
-QUBO DC-OPF            | iter=01 | cost=7641.152531 | grad=1.999e+03 | feas=2.310e-01 | gap=1.133e+00
-QUBO DC-OPF            | iter=02 | cost=7639.681787 | grad=1.998e+03 | feas=2.308e-01 | gap=1.133e+00
-QUBO DC-OPF            | iter=03 | cost=7638.211052 | grad=1.997e+03 | feas=2.306e-01 | gap=1.132e+00
-QUBO DC-OPF            | iter=04 | cost=7636.740328 | grad=1.996e+03 | feas=2.304e-01 | gap=1.131e+00
-QUBO DC-OPF            | iter=05 | cost=7635.269613 | grad=1.995e+03 | feas=2.302e-01 | gap=1.130e+00
+Classical DC-OPF       | iter=00 | cost=3060.247763 | grad=6.209e+02 | feas=2.657e-01 | gap=1.056e+00
+Classical DC-OPF       | iter=01 | cost=3045.267734 | grad=2.646e-01 | feas=4.723e-02 | gap=2.753e-01
+Classical DC-OPF       | iter=02 | cost=3044.936513 | grad=5.270e-03 | feas=3.514e-02 | gap=5.558e-02
+Classical DC-OPF       | iter=03 | cost=3045.017305 | grad=7.326e-03 | feas=2.872e-02 | gap=1.428e-02
+Classical DC-OPF       | iter=04 | cost=3046.413205 | grad=7.232e-12 | feas=2.687e-08 | gap=3.497e-03
+Classical DC-OPF       | iter=05 | cost=3046.412881 | grad=3.577e-07 | feas=8.977e-10 | gap=4.094e-04
+Classical DC-OPF       | iter=06 | cost=3046.412554 | grad=6.517e-15 | feas=6.278e-11 | gap=4.095e-05
+Classical DC-OPF       | iter=07 | cost=3046.412516 | grad=6.548e-15 | feas=5.346e-12 | gap=4.095e-06
+Classical DC-OPF       | iter=08 | cost=3046.412512 | grad=2.617e-15 | feas=5.346e-13 | gap=4.095e-07
+VQLS DC-OPF            | iter=00 | cost=3060.247763 | grad=6.209e+02 | feas=2.657e-01 | gap=1.056e+00
+VQLS DC-OPF            | iter=01 | cost=784.872996 | grad=3.683e+02 | feas=8.733e-01 | gap=3.933e-01
+VQLS DC-OPF            | iter=02 | cost=649.513896 | grad=1.927e+01 | feas=8.667e-01 | gap=8.029e-01
+VQLS DC-OPF            | iter=03 | cost=453.436521 | grad=1.049e+00 | feas=7.372e-01 | gap=3.096e+00
+VQLS DC-OPF            | iter=04 | cost=444.525357 | grad=9.760e-01 | feas=1.486e+00 | gap=1.364e+01
+VQLS DC-OPF            | iter=05 | cost=339.685727 | grad=9.976e-01 | feas=3.406e+00 | gap=3.857e+00
+VQLS DC-OPF            | iter=06 | cost=398.880974 | grad=9.992e-01 | feas=6.168e+00 | gap=3.528e+00
+VQLS DC-OPF            | iter=07 | cost=436.004438 | grad=9.999e-01 | feas=7.241e+00 | gap=4.186e+00
+HHL DC-OPF             | iter=00 | cost=3060.247763 | grad=6.209e+02 | feas=2.657e-01 | gap=1.056e+00
+HHL DC-OPF             | iter=01 | cost=744.769684 | grad=3.686e+02 | feas=2.451e-01 | gap=3.732e-01
+HHL DC-OPF             | iter=02 | cost=614.277471 | grad=1.643e+01 | feas=2.437e-01 | gap=8.562e-01
+HHL DC-OPF             | iter=03 | cost=152.697481 | grad=2.449e+00 | feas=2.437e-01 | gap=1.021e+00
+HHL DC-OPF             | iter=04 | cost=90.823982 | grad=8.567e-01 | feas=2.459e-01 | gap=8.486e-01
+HHL DC-OPF             | iter=05 | cost=609.810460 | grad=3.160e-01 | feas=1.737e-01 | gap=3.975e-01
+[OPF warning] quantum/KKT solver failed: HHL success probability too small.
+HHL DC-OPF             | iter=06 | cost=1925.518244 | grad=5.666e-01 | feas=8.196e-02 | gap=1.587e+01
+HHL DC-OPF             | iter=07 | cost=1812.900121 | grad=3.443e-01 | feas=8.949e-02 | gap=1.815e+01
+QUBO DC-OPF            | iter=00 | cost=3060.247763 | grad=6.209e+02 | feas=2.657e-01 | gap=1.056e+00
+[RAW QUBO] rel_residual=1.000e+00, num_binary_variables=42
+QUBO DC-OPF            | iter=01 | cost=3059.946480 | grad=6.361e+02 | feas=1.329e-01 | gap=5.989e-01
+[RAW QUBO] rel_residual=1.000e+00, num_binary_variables=42
+QUBO DC-OPF            | iter=02 | cost=3059.645334 | grad=6.742e+02 | feas=6.644e-02 | gap=3.437e-01
+[RAW QUBO] rel_residual=1.000e+00, num_binary_variables=42
+QUBO DC-OPF            | iter=03 | cost=3059.344338 | grad=7.423e+02 | feas=3.322e-02 | gap=1.981e-01
+[RAW QUBO] rel_residual=1.000e+00, num_binary_variables=42
+QUBO DC-OPF            | iter=04 | cost=3059.043204 | grad=8.388e+02 | feas=1.661e-02 | gap=1.134e-01
+[RAW QUBO] rel_residual=1.000e+00, num_binary_variables=42
+QUBO DC-OPF            | iter=05 | cost=3058.741621 | grad=9.477e+02 | feas=8.305e-03 | gap=6.420e-02
+[RAW QUBO] rel_residual=1.000e+00, num_binary_variables=42
+QUBO DC-OPF            | iter=06 | cost=3058.439491 | grad=1.047e+03 | feas=4.152e-03 | gap=3.594e-02
+[RAW QUBO] rel_residual=1.000e+00, num_binary_variables=42
+QUBO DC-OPF            | iter=07 | cost=3058.136902 | grad=1.122e+03 | feas=2.076e-03 | gap=1.996e-02
+[RAW QUBO] rel_residual=1.000e+00, num_binary_variables=42
 
 ================================================================================
 Classical DC-OPF
 ================================================================================
 converged             = True
-iterations            = 11
-KKT dimension         = 52 -> padded to 64
-cost                  = 7795.706688
-balance_inf           = 3.580469e-15
+iterations            = 9
+KKT dimension         = 14 -> padded to 16
+cost                  = 3046.412512
+balance_inf           = 1.603606e-12
 max_gen_violation_mw  = 0.000000e+00
 max_line_violation_mw = 0.000000e+00
 include_line_limits   = False
 
 Generator dispatch Pg MW:
-  gen row  0: Pg =  210.839904 MW
-  gen row  1: Pg =  36.297725 MW
-  gen row  2: Pg =  0.000000 MW
-  gen row  3: Pg =  15.211438 MW
-  gen row  4: Pg =  0.000000 MW
+  gen row  0: Pg =  50.000001 MW
+  gen row  1: Pg =  88.073619 MW
+  gen row  2: Pg =  71.926380 MW
 
 Voltage angles theta degrees:
-[  0.          -4.86681141 -12.6445496  -10.13294572  -8.59842244
- -13.73941303 -13.52282975 -13.52282975 -15.18620735 -15.35826661
- -14.75892832 -14.90215352 -15.11208469 -16.45282609]
+[ 0.         -0.29895634 -0.2779392  -2.98642074 -3.66630154 -3.08739406]
 
 ================================================================================
 VQLS DC-OPF
 ================================================================================
 converged             = False
-iterations            = 6
-KKT dimension         = 52 -> padded to 64
-cost                  = -1675.244057
-balance_inf           = 1.373945e+01
-max_gen_violation_mw  = 8.425325e+01
-max_line_violation_mw = 0.000000e+00
+iterations            = 8
+KKT dimension         = 14 -> padded to 16
+cost                  = 458.105070
+balance_inf           = 2.354552e+01
+max_gen_violation_mw  = 7.110664e+01
+max_line_violation_mw = 8.855813e+02
 include_line_limits   = False
 
 Generator dispatch Pg MW:
-  gen row  0: Pg =  208.103449 MW
-  gen row  1: Pg =  34.329129 MW
-  gen row  2: Pg = -71.706603 MW
-  gen row  3: Pg = -65.213197 MW
-  gen row  4: Pg = -84.253246 MW
+  gen row  0: Pg = -21.106638 MW
+  gen row  1: Pg = -11.498405 MW
+  gen row  2: Pg =  15.217001 MW
 
 Voltage angles theta degrees:
-[  0.           0.69592469 -35.090366   -15.70354157 -14.54111896
- -22.10213836 -36.55374609 -77.76810204 -53.7731476  -14.34111977
- -32.27739815 -22.97000514 -38.18763046 -23.1140192 ]
+[  0.          57.48064279  76.83479192 108.35563929   4.98611026
+  26.09267444]
 
 ================================================================================
 HHL DC-OPF
 ================================================================================
 converged             = False
-iterations            = 6
-KKT dimension         = 52 -> padded to 64
-cost                  = -119047.973110
-balance_inf           = 8.942538e+00
-max_gen_violation_mw  = 1.666770e+03
+iterations            = 8
+KKT dimension         = 14 -> padded to 16
+cost                  = 1914.977603
+balance_inf           = 2.670479e-01
+max_gen_violation_mw  = 9.717411e+00
 max_line_violation_mw = 0.000000e+00
 include_line_limits   = False
 
 Generator dispatch Pg MW:
-  gen row  0: Pg = -152.957754 MW
-  gen row  1: Pg = -26.294576 MW
-  gen row  2: Pg = -1666.073220 MW
-  gen row  3: Pg = -1666.769774 MW
-  gen row  4: Pg = -1663.546316 MW
+  gen row  0: Pg =  41.482082 MW
+  gen row  1: Pg =  27.782589 MW
+  gen row  2: Pg =  42.580716 MW
 
 Voltage angles theta degrees:
-[   0.           -3.30219465  -86.51342662   -2.10013224    5.96263853
-  -34.28865879  -42.017756   -204.96397878    8.00304502   20.40909292
-    6.84867183   -3.7944987    -2.21300625   15.41051389]
+[ 0.         -0.80382697 -0.57993592 -2.70565578 -3.16803639 -2.65076306]
 
 ================================================================================
 QUBO DC-OPF
 ================================================================================
 converged             = False
-iterations            = 6
-KKT dimension         = 52 -> padded to 64
-cost                  = 7633.798909
-balance_inf           = 2.028043e-02
-max_gen_violation_mw  = 5.012315e-02
+iterations            = 8
+KKT dimension         = 14 -> padded to 16
+cost                  = 3057.834001
+balance_inf           = 6.984764e-04
+max_gen_violation_mw  = 0.000000e+00
 max_line_violation_mw = 0.000000e+00
 include_line_limits   = False
 
 Generator dispatch Pg MW:
-  gen row  0: Pg =  220.912950 MW
-  gen row  1: Pg =  38.015789 MW
-  gen row  2: Pg = -0.050123 MW
-  gen row  3: Pg = -0.050123 MW
-  gen row  4: Pg = -0.050123 MW
+  gen row  0: Pg =  70.198875 MW
+  gen row  1: Pg =  63.451587 MW
+  gen row  2: Pg =  76.148176 MW
 
 Voltage angles theta degrees:
-[  0.          -5.0999652  -13.08698734 -10.78725337  -9.26598284
- -15.90968674 -14.62288404 -14.63063232 -16.50272127 -16.83044386
- -16.57526773 -17.00525431 -17.16278055 -18.09221252]
+[ 0.         -1.42583514 -1.00351186 -3.72786586 -4.34603912 -3.9118973 ]
 Saved: outputs\dc_opf_gradcond.png
 Saved: outputs\dc_opf_generator_dispatch.png
 
@@ -429,23 +179,24 @@ Saved: outputs\dc_opf_generator_dispatch.png
 OUTPUT FILES
 ================================================================================
 Text result file: outputs\run_results.txt
+
 Matrix files:
   outputs\matrices/Ybus_real.csv
   outputs\matrices/Ybus_imag.csv
   outputs\matrices/Bprime.csv
   outputs\matrices/Bdouble_prime.csv
   outputs\matrices/rhs_p_initial.csv
-  outputs\matrices/QUBO_Q_initial_scaled.csv
-Plots:
+
+Possible plots:
   outputs/one_step_delta_theta_solution.png
   outputs/ieee14_fdls_loss_comparison.png
   outputs/ieee14_final_angle_solution.png
   outputs/ieee14_final_voltage_solution.png
   outputs/vqls_no_cz_cost.png
   outputs/qubo_annealing_energy.png
+  outputs/dc_opf_gradcond.png
+  outputs/dc_opf_generator_dispatch.png
 
 Important note:
 QUBO annealing here means QUBO formulation + classical simulated annealing.
 It is not a real D-Wave quantum annealer run yet.
-  outputs/dc_opf_gradcond.png
-  outputs/dc_opf_generator_dispatch.png

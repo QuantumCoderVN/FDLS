@@ -12,6 +12,8 @@ from config import (
     OPF_SIGMA,
     OPF_FRACTION_TO_BOUNDARY,
     OPF_KKT_REG,
+    OPF_QUANTUM_FALLBACK_RELRES,
+    OPF_MAX_QUANTUM_KKT_DIM,
 )
 
 from math_utils import clean_real_vector, next_power_of_two
@@ -356,16 +358,21 @@ def fraction_to_boundary_step(v, dv, tau=0.99):
     return min(1.0, tau * np.min(-v[negative] / dv[negative]))
 
 
-def solve_symmetric_preconditioned_kkt(K, rhs, linear_solver, reg=OPF_KKT_REG):
+def solve_symmetric_preconditioned_kkt(
+    K,
+    rhs,
+    linear_solver,
+    reg=OPF_KKT_REG,
+    fallback_relres=OPF_QUANTUM_FALLBACK_RELRES,
+    max_quantum_dim=OPF_MAX_QUANTUM_KKT_DIM,
+):
     """
-    Symmetric diagonal preconditioning:
+    Solve preconditioned KKT system robustly.
 
-        Kp = D K D
-        rp = D rhs
-        solve Kp y = rp
-        delta = D y
-
-    This is the hook where Classical / VQLS / HHL can be used.
+    Ý tưởng:
+    - Scale đối xứng để KKT bớt xấu điều kiện.
+    - Nếu dimension quá lớn hoặc quantum solver cho residual xấu,
+      tự động fallback về classical np.linalg.solve/lstsq.
     """
 
     K = np.asarray(K, dtype=float)
@@ -374,19 +381,47 @@ def solve_symmetric_preconditioned_kkt(K, rhs, linear_solver, reg=OPF_KKT_REG):
     if np.linalg.norm(rhs) < 1e-14:
         return np.zeros_like(rhs)
 
+    # Symmetrize + regularize.
     K = 0.5 * (K + K.T)
     K = K + reg * np.eye(K.shape[0])
 
+    # Symmetric diagonal scaling: Kp y = rp, delta = D y.
     row_norm = np.sum(np.abs(K), axis=1)
     row_norm = np.maximum(row_norm, 1e-12)
-
     D = 1.0 / np.sqrt(row_norm)
 
     Kp = (D[:, None] * K) * D[None, :]
     rp = D * rhs
 
-    y = linear_solver(Kp, rp)
-    y = clean_real_vector(y)
+    def classical_solve(Kmat, rvec):
+        try:
+            return np.linalg.solve(Kmat, rvec)
+        except np.linalg.LinAlgError:
+            return np.linalg.lstsq(Kmat, rvec, rcond=None)[0]
+
+    # Nếu KKT quá lớn, đừng gọi VQLS/HHL/QUBO.
+    if Kp.shape[0] > max_quantum_dim:
+        y = classical_solve(Kp, rp)
+        return clean_real_vector(D * y)
+
+    # Thử solver được truyền vào.
+    try:
+        y = linear_solver(Kp, rp)
+        y = clean_real_vector(y)
+    except Exception as exc:
+        print(f"[OPF warning] quantum/KKT solver failed: {exc}")
+        y = classical_solve(Kp, rp)
+        return clean_real_vector(D * y)
+
+    # Kiểm tra chất lượng nghiệm.
+    relres = np.linalg.norm(Kp @ y - rp) / max(np.linalg.norm(rp), 1e-14)
+
+    if (not np.all(np.isfinite(y))) or relres > fallback_relres:
+        print(
+            f"[OPF warning] KKT solver residual too large: "
+            f"{relres:.3e}. Fallback to classical solve."
+        )
+        y = classical_solve(Kp, rp)
 
     return clean_real_vector(D * y)
 
@@ -469,7 +504,7 @@ def dc_opf_primal_dual_ipm(
             "gradcond": float(gradcond),
             "feascond": float(feascond),
             "compcond": float(compcond),
-            "kkt_dim": int(nx + m_ineq + n_eq + m_ineq),
+            "kkt_dim": int(nx + n_eq),
         })
 
         if verbose:
@@ -484,47 +519,53 @@ def dc_opf_primal_dual_ipm(
         if max(gradcond, feascond, compcond) < tol:
             break
 
-        K11 = H
-        K12 = np.zeros((nx, m_ineq))
-        K13 = Aeq.T
-        K14 = G.T
+                # ------------------------------------------------------------
+        # Reduced KKT system
+        # ------------------------------------------------------------
+        # Full KKT dùng biến [dx, dz, dlambda, dmu].
+        # Ta loại dz và dmu để hệ nhỏ hơn:
+        #
+        # dz  = -rg - G dx
+        # dmu = -rz + W (rg + G dx),  W = diag(mu / z)
+        #
+        # Reduced system:
+        # [H + G.T W G   Aeq.T] [dx     ] = [-rx + G.T rz - G.T W rg]
+        # [Aeq             0  ] [dlambda]   [-rh]
+        #
+        # Lợi ích:
+        # - full KKT dim = nx + m_ineq + n_eq + m_ineq
+        # - reduced dim  = nx + n_eq
+        #
+        # Với IEEE14 DC-OPF: thường giảm từ khoảng 52 xuống khoảng 32.
 
-        K21 = np.zeros((m_ineq, nx))
-        K22 = np.diag(mu / z)
-        K23 = np.zeros((m_ineq, n_eq))
-        K24 = np.eye(m_ineq)
+        W = mu / z
 
-        K31 = Aeq
-        K32 = np.zeros((n_eq, m_ineq))
-        K33 = np.zeros((n_eq, n_eq))
-        K34 = np.zeros((n_eq, m_ineq))
-
-        K41 = G
-        K42 = np.eye(m_ineq)
-        K43 = np.zeros((m_ineq, n_eq))
-        K44 = np.zeros((m_ineq, m_ineq))
+        K_red_11 = H + G.T @ (W[:, None] * G)
+        K_red_12 = Aeq.T
+        K_red_21 = Aeq
+        K_red_22 = np.zeros((n_eq, n_eq), dtype=float)
 
         KKT = np.block([
-            [K11, K12, K13, K14],
-            [K21, K22, K23, K24],
-            [K31, K32, K33, K34],
-            [K41, K42, K43, K44],
+            [K_red_11, K_red_12],
+            [K_red_21, K_red_22],
         ])
 
-        rhs = -np.concatenate([rx, rz, rh, rg])
+        rhs_red_x = -rx + G.T @ rz - G.T @ (W * rg)
+        rhs_red_h = -rh
+        rhs = np.concatenate([rhs_red_x, rhs_red_h])
 
-        delta = solve_symmetric_preconditioned_kkt(
+        delta_red = solve_symmetric_preconditioned_kkt(
             KKT,
             rhs,
             linear_solver=linear_solver,
         )
 
-        dx, dz, dlmbda, dmu = split_opf_kkt_delta(
-            delta,
-            nx=nx,
-            m_ineq=m_ineq,
-            n_eq=n_eq,
-        )
+        dx = delta_red[:nx]
+        dlmbda = delta_red[nx:nx + n_eq]
+
+        # Reconstruct eliminated variables.
+        dz = -rg - G @ dx
+        dmu = -rz + W * (rg + G @ dx)
 
         alpha_p = fraction_to_boundary_step(
             z,
